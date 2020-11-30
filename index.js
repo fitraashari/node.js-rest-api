@@ -7,6 +7,19 @@ const { response } = require('express')
 const app = express()
 //set port
 const port = 2020
+
+// mongo db
+const MongoClient = require('mongodb').MongoClient
+const ObjectID = require('mongodb').ObjectID
+const DBUrl = "mongodb://127.0.0.1:27017/"
+const DBName = "azure"
+
+let dbo = null;
+MongoClient.connect(DBUrl,(error, db)=>{
+    if(error) throw error;
+    dbo = db.db(DBName)
+})
+
 // parse application/x-www-form-urlencoded
 app.use(bodyParser.urlencoded({extended:false}))
 
@@ -24,26 +37,57 @@ app.post('/test',(req,res)=>{
 
 // restfull api
 app.get('/endpoint',(req,res)=>{
-    res.end('Ini Adalah Endpoint')
+    dbo.collection('mahasiswa').find().toArray((error,data)=>{
+        if(error) throw error
+        res.json(data)
+    })
 })
 app.get('/endpoint/:param',(req,res)=>{
-    let param = req.params.param
-    res.end('Parameter yang dikirim adalah: '+param)
+    let id = req.params.param
+    let id_object = new ObjectID(id)
+    dbo.collection('mahasiswa').findOne({"_id": id_object},(error,result)=>{
+        if(error) throw error
+        res.json(result)
+    })
 })
 app.post('/endpoint',(req,res)=>{
     let nama = req.body.nama
     let umur = req.body.umur
-    res.end("Nama: "+nama+", Umur: "+umur)
+    dbo.collection("mahasiswa").insertOne({
+        nama:nama,
+        umur:umur
+    },(error,result)=>{
+        if(!error){
+            res.json(result)
+        }else{
+            throw error
+        }
+    })
 })
 app.delete('/endpoint/:param',(req,res)=>{
-    let param = req.params.param
-    res.end("Data dengan id "+param+" akan dihapus!")
+    let id = req.params.param
+    let id_object = new ObjectID(id)
+    dbo.collection("mahasiswa").deleteOne({
+        _id : id_object
+    },(error,result)=>{
+        if(error) throw error
+        res.json(result)
+    })
 })
 app.put('/endpoint/:param',(req,res)=>{
-    let param = req.params.param
+    let id = req.params.param
+    let id_object = new ObjectID(id)
     let nama = req.body.nama
     let umur = req.body.umur
-    res.end("Data dengan param "+param+" sudah di update")
+    dbo.collection('mahasiswa').updateOne({
+        "_id":id_object
+    },{$set:{
+        nama:nama,
+        umur:umur
+    }},(error,result)=>{
+        if(error) throw error
+        res.json(result)
+    })
 })
 // buka port
 app.listen(port,()=>{
